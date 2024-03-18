@@ -1,15 +1,28 @@
-use std::{
-    io::{BufRead, BufReader, Write},
+use tokio::{
+    io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
     net::TcpStream,
 };
 
-pub fn handle_requests(mut stream: TcpStream) {
+pub async fn handle_requests(mut stream: TcpStream) {
     let buf_reader = BufReader::new(&mut stream);
-    let http_request: Vec<_> = buf_reader
-        .lines()
-        .map(|result| result.unwrap())
-        .take_while(|line| !line.is_empty())
-        .collect();
+    let mut read_lines = buf_reader.lines();
+    let mut http_request = Vec::new();
+
+    while let Some(line) = read_lines.next_line().await.unwrap() {
+        if line.is_empty() {
+            break;
+        }
+        http_request.push(line);
+    }
+
+    if http_request.is_empty() {
+        stream
+            .write_all("HTTP/1.1 400 Bad Request".as_bytes())
+            .await
+            .unwrap();
+        println!("Invalid Request Recvd");
+        return;
+    }
 
     let start_line = &http_request[0];
     let path = start_line.split(' ').nth(1).unwrap();
@@ -43,5 +56,6 @@ pub fn handle_requests(mut stream: TcpStream) {
         String::from("HTTP/1.1 404 Not Found\r\n\r\n")
     };
 
-    stream.write_all(response.as_bytes()).unwrap();
+    println!("Responding with {}", response);
+    stream.write_all(response.as_bytes()).await.unwrap();
 }
