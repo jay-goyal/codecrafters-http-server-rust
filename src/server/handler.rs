@@ -12,11 +12,20 @@ pub fn handle_requests(mut stream: TcpStream) {
         .collect();
 
     let start_line = &http_request[0];
-    let method = start_line.split(' ').nth(1).unwrap();
+    let path = start_line.split(' ').nth(1).unwrap();
 
-    let response = match method {
-     "/" => "HTTP/1.1 200 OK\r\n\r\n",
-        _ => "HTTP/1.1 404 Not Found\r\n\r\n"
+    let response = if path == "/" {
+        String::from("HTTP/1.1 200 OK\r\n\r\n")
+    } else if path.starts_with("/echo/") {
+        let echo_path = path.trim_start_matches("/echo/").to_owned();
+        format!(
+            "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {}\r\n\r\n{}",
+            echo_path.as_bytes().len(),
+            echo_path
+        )
+    } else {
+        String::from("HTTP/1.1 404 Not Found\r\n\r\n")
     };
+
     stream.write_all(response.as_bytes()).unwrap();
 }
