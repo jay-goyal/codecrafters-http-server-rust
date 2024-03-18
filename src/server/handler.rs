@@ -23,6 +23,22 @@ pub fn handle_requests(mut stream: TcpStream) {
             echo_path.as_bytes().len(),
             echo_path
         )
+    } else if path.starts_with("/user-agent") {
+        let mut user_agent = None;
+        for line in http_request {
+            if line.starts_with("User-Agent:") {
+                user_agent = Some(line.split(' ').nth(1).unwrap().to_owned());
+                break;
+            }
+        }
+        match user_agent {
+            Some(x) => format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {}\r\n\r\n{}",
+                x.as_bytes().len(),
+                x
+            ),
+            None => String::from("HTTP/1.1 404 Not Found\r\n\r\n"),
+        }
     } else {
         String::from("HTTP/1.1 404 Not Found\r\n\r\n")
     };
